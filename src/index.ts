@@ -2408,7 +2408,734 @@ export default {
       });
     }
 
+    // --- DASHBOARD ---
+    if (url.pathname === "/dashboard" || url.pathname === "/dashboard/") {
+      return new Response(getDashboardHTML(env), {
+        headers: {
+          'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'no-cache',
+          ...corsHeaders,
+        },
+      });
+    }
+
     // --- DEFAULT FALLBACK ---
-    return textResponse("the tether is alive");
+    return textResponse("the tether is alive. Dashboard at /dashboard");
   },
 };
+
+// ============================================================
+// DASHBOARD HTML
+// ============================================================
+function getDashboardHTML(env: Env): string {
+  // Get API base URL from request origin (self-referential)
+  const API_BASE = ''; // Empty = same origin
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0d1117">
+  <title>Tether Mind Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 16px;
+      padding-top: env(safe-area-inset-top, 16px);
+      padding-bottom: env(safe-area-inset-bottom, 16px);
+      min-height: 100vh;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 { color: #58a6ff; font-size: 1.4rem; }
+    .brand-sub { color: #8b949e; font-size: 0.7rem; font-weight: 400; display: block; margin-top: 2px; }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    select, input, button {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      min-height: 44px;
+    }
+    button {
+      cursor: pointer;
+      background: #238636;
+      border-color: #238636;
+      font-weight: 500;
+    }
+    button:hover { background: #2ea043; }
+    button:active { transform: scale(0.98); }
+    .secondary { background: #21262d; border-color: #30363d; }
+    .secondary:hover { background: #30363d; }
+    .copy-btn { background: #1f6feb; border-color: #1f6feb; }
+    .copy-btn:hover { background: #388bfd; }
+    .copy-btn.success { background: #238636; border-color: #238636; }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab {
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      color: #8b949e;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 14px;
+      min-height: 44px;
+    }
+    .tab.active {
+      background: #21262d;
+      color: #58a6ff;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .soulfile {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .observation {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .observation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-right: 6px;
+      display: inline-block;
+    }
+    .kind { background: #388bfd33; color: #58a6ff; }
+    .salience { background: #238636; color: #fff; }
+    .observation-content {
+      margin-bottom: 12px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .observation-details {
+      font-size: 12px;
+      color: #8b949e;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 20px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h2 { margin-bottom: 16px; font-size: 1.2rem; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; color: #8b949e; font-size: 14px; }
+    .form-group textarea, .form-group input, .form-group select { width: 100%; }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .error {
+      color: #f85149;
+      background: #f8514922;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .loading {
+      text-align: center;
+      color: #58a6ff;
+      padding: 40px 20px;
+      font-size: 14px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #238636;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #21262d;
+      text-align: center;
+      font-size: 12px;
+      color: #484f58;
+    }
+    .footer a { color: #58a6ff; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    .wake-modal-content {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 50vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      user-select: all;
+      -webkit-user-select: all;
+    }
+
+    .briefing {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .briefing-title {
+      color: #58a6ff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .briefing-content {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Emotion donut chart */
+    .emotion-chart-container {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .emotion-donut {
+      width: 120px;
+      height: 120px;
+      flex-shrink: 0;
+    }
+    .emotion-legend {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .emotion-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .emotion-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .emotion-dot.intimacy { background: #f778ba; }
+    .emotion-dot.joy { background: #7ee787; }
+    .emotion-dot.conflict { background: #f85149; }
+    .emotion-dot.fear { background: #a371f7; }
+    .emotion-value {
+      color: #8b949e;
+      font-size: 12px;
+      margin-left: auto;
+    }
+    .emotion-chart-title {
+      color: #58a6ff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .agent-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .agent-input-row input {
+      flex: 1;
+      max-width: 200px;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      h1 { font-size: 1.2rem; }
+      .header { flex-direction: column; align-items: stretch; }
+      .controls { justify-content: space-between; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Tether Mind<span class="brand-sub">by AIBU</span></h1>
+    <div class="controls">
+      <button onclick="loadData()">Refresh</button>
+      <button onclick="openCreateModal()">+ New</button>
+    </div>
+  </div>
+
+  <div class="agent-input-row">
+    <input type="text" id="agent-input" placeholder="Enter agent name (e.g., oliver)">
+    <button onclick="loadData()">Load</button>
+  </div>
+
+  <div class="action-row">
+    <button class="copy-btn" id="copy-wake-btn" onclick="copyWake()">Copy Wake</button>
+    <button class="secondary" onclick="toggleSoulfile()">Soulfile</button>
+  </div>
+
+  <div id="soulfile" class="soulfile" style="display: none;"></div>
+
+  <div id="emotion-chart-container"></div>
+
+  <div id="briefing-container"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="recent">Recent</button>
+    <button class="tab" data-tab="salient">Salient</button>
+    <button class="tab" data-tab="hot">Hot</button>
+    <button class="tab" data-tab="superseded">Superseded</button>
+  </div>
+
+  <div id="error-container"></div>
+  <div id="observations"></div>
+
+  <div id="create-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>New Observation</h2>
+      <form id="create-form">
+        <div class="form-group">
+          <label>Kind</label>
+          <select id="create-kind">
+            <option value="identity">identity</option>
+            <option value="relational">relational</option>
+            <option value="operational">operational</option>
+            <option value="emotional">emotional</option>
+            <option value="project">project</option>
+            <option value="correction">correction</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Content</label>
+          <textarea id="create-content" required placeholder="What do you want to remember?"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Salience (0-100)</label>
+          <input type="number" id="create-salience" value="50" min="0" max="100">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="secondary" onclick="closeModal('create-modal')">Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="wake-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>Wake Data</h2>
+      <p style="color:#8b949e;font-size:13px;margin-bottom:12px;">Tap and hold to select all, then copy:</p>
+      <div id="wake-modal-content" class="wake-modal-content"></div>
+      <div class="form-actions">
+        <button type="button" class="secondary" onclick="closeModal('wake-modal')">Close</button>
+        <button type="button" id="wake-modal-share" onclick="shareWake()" style="display:none;">Share</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const API_BASE = '${API_BASE}';
+
+    let currentTab = 'recent';
+    let currentData = null;
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentTab = tab.dataset.tab;
+        renderObservations();
+      });
+    });
+
+    // Show toast notification
+    function showToast(message, duration = 2000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // Load data from API
+    async function loadData() {
+      const agent = document.getElementById('agent-input').value.trim();
+      if (!agent) {
+        showToast('Enter an agent name first');
+        return;
+      }
+
+      const container = document.getElementById('observations');
+      container.innerHTML = '<div class="loading">Loading...</div>';
+      document.getElementById('error-container').innerHTML = '';
+      document.getElementById('briefing-container').innerHTML = '';
+
+      try {
+        let url = API_BASE + '/wake/' + agent + '?hot=true';
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Server returned ' + response.status);
+
+        currentData = await response.json();
+
+        // Load superseded separately
+        try {
+          const supRes = await fetch(API_BASE + '/observe/superseded/' + agent);
+          if (supRes.ok) {
+            const supData = await supRes.json();
+            currentData.superseded = supData.superseded;
+          }
+        } catch(e) { console.log("Superseded fetch failed", e); }
+
+        document.getElementById('soulfile').textContent = currentData.soulfile || 'No soulfile found';
+
+        renderEmotionChart();
+        renderBriefing();
+        renderObservations();
+
+      } catch (error) {
+        container.innerHTML = '';
+        document.getElementById('error-container').innerHTML = '<div class="error"><strong>Connection Failed</strong><br>' + error.message + '</div>';
+      }
+    }
+
+    // Render narrative briefing
+    function renderBriefing() {
+      const container = document.getElementById('briefing-container');
+      if (!currentData?.narrativeBriefing) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const b = currentData.narrativeBriefing;
+      container.innerHTML = '<div class="briefing"><div class="briefing-title">Status</div><div class="briefing-content">' + (b.narrativeState || 'No recent activity.') + '<br><span style="color:#8b949e">' + (b.emotionalTrajectory?.description || '') + '</span></div></div>';
+    }
+
+    // Render emotion donut chart
+    function renderEmotionChart() {
+      const container = document.getElementById('emotion-chart-container');
+      if (!currentData?.emotions) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const e = currentData.emotions;
+      const total = e.intimacy + e.joy + e.conflict + e.fear;
+      const isEmpty = total === 0;
+
+      const size = 120;
+      const strokeWidth = 20;
+      const radius = (size - strokeWidth) / 2;
+      const circumference = 2 * Math.PI * radius;
+      const cx = size / 2;
+      const cy = size / 2;
+
+      const segments = [
+        { key: 'intimacy', value: e.intimacy, color: '#f778ba' },
+        { key: 'joy', value: e.joy, color: '#7ee787' },
+        { key: 'conflict', value: e.conflict, color: '#f85149' },
+        { key: 'fear', value: e.fear, color: '#a371f7' }
+      ].filter(s => s.value > 0);
+
+      let svg = '<svg class="emotion-donut" viewBox="0 0 ' + size + ' ' + size + '">';
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + radius + '" fill="none" stroke="#30363d" stroke-width="' + strokeWidth + '"/>';
+
+      if (!isEmpty) {
+        let offset = 0;
+        for (const seg of segments) {
+          const pct = seg.value / 100;
+          const length = circumference * pct;
+          const gap = circumference - length;
+          svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + radius + '" fill="none" stroke="' + seg.color + '" stroke-width="' + strokeWidth + '" stroke-dasharray="' + length + ' ' + gap + '" stroke-dashoffset="' + (-offset) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>';
+          offset += length;
+        }
+      }
+      svg += '</svg>';
+
+      const legend = [
+        { key: 'intimacy', label: 'Intimacy', value: e.intimacy },
+        { key: 'joy', label: 'Joy', value: e.joy },
+        { key: 'conflict', label: 'Conflict', value: e.conflict },
+        { key: 'fear', label: 'Fear', value: e.fear }
+      ];
+
+      container.innerHTML = '<div class="emotion-chart-container">' + svg + '<div><div class="emotion-chart-title">Emotional Snapshot' + (isEmpty ? ' <span style="color:#484f58;font-weight:normal;">(no data)</span>' : '') + '</div><div class="emotion-legend">' + legend.map(l => '<div class="emotion-legend-item"><div class="emotion-dot ' + l.key + '"></div><span>' + l.label + '</span><span class="emotion-value">' + l.value + '%</span></div>').join('') + '</div></div></div>';
+    }
+
+    // Render observations list
+    function renderObservations() {
+      const container = document.getElementById('observations');
+      let obsList = [];
+
+      if (currentData) {
+        if (currentTab === 'superseded') {
+          obsList = currentData.superseded || [];
+        } else if (currentData._tiers) {
+          obsList = currentData._tiers[currentTab] || [];
+        } else {
+          obsList = currentData[currentTab] || [];
+        }
+      }
+
+      if (!obsList.length) {
+        container.innerHTML = '<div class="loading" style="color:#8b949e">No observations found.</div>';
+        return;
+      }
+
+      container.innerHTML = obsList.map(obs => '<div class="observation"><div class="observation-header"><div><span class="badge kind">' + obs.kind + '</span><span class="badge salience">S: ' + (obs.decayed_salience ?? obs.salience) + '</span></div><span style="font-size:11px; color:#8b949e">' + obs.id.slice(0,8) + '</span></div><div class="observation-content">' + obs.content + '</div><div class="observation-details"><span>Author: ' + obs.author + '</span><span>' + new Date(obs.created_at).toLocaleDateString() + '</span></div></div>').join('');
+    }
+
+    // Store wake data for share function
+    let lastWakeData = '';
+
+    // Show wake in modal for manual copy (mobile fallback)
+    function showWakeModal(text) {
+      lastWakeData = text;
+      document.getElementById('wake-modal-content').textContent = text;
+      if (navigator.share) {
+        document.getElementById('wake-modal-share').style.display = 'block';
+      }
+      document.getElementById('wake-modal').classList.add('active');
+    }
+
+    // Share wake using native share sheet
+    async function shareWake() {
+      if (navigator.share && lastWakeData) {
+        try {
+          await navigator.share({ title: 'Wake Data', text: lastWakeData });
+          closeModal('wake-modal');
+          showToast('Shared!');
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            showToast('Share cancelled');
+          }
+        }
+      }
+    }
+
+    // Copy wake data for other platforms
+    async function copyWake() {
+      const btn = document.getElementById('copy-wake-btn');
+      const agent = document.getElementById('agent-input').value.trim();
+
+      if (!agent) {
+        showToast('Enter an agent name first');
+        return;
+      }
+
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+
+      try {
+        const url = API_BASE + '/wake/' + agent + '?hot=true&compact=true';
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Fetch failed: ' + response.status);
+
+        const data = await response.json();
+        const text = JSON.stringify(data, null, 2);
+
+        let copied = false;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(text);
+            copied = true;
+          } catch (e) {}
+        }
+
+        if (copied) {
+          btn.textContent = 'Copied!';
+          btn.classList.add('success');
+          showToast('Wake copied to clipboard');
+        } else {
+          showWakeModal(text);
+          btn.textContent = 'Copy Wake';
+          btn.disabled = false;
+          return;
+        }
+
+        setTimeout(() => {
+          btn.textContent = 'Copy Wake';
+          btn.classList.remove('success');
+          btn.disabled = false;
+        }, 2000);
+
+      } catch (error) {
+        btn.textContent = 'Copy Wake';
+        btn.disabled = false;
+        showToast('Failed: ' + error.message);
+      }
+    }
+
+    // Modal functions
+    function openCreateModal() {
+      document.getElementById('create-modal').classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+          closeModal(e.target.id);
+        }
+      });
+    });
+
+    // Create observation form
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const agent = document.getElementById('agent-input').value.trim();
+      if (!agent) {
+        showToast('Enter an agent name first');
+        return;
+      }
+
+      const body = {
+        agent_id: agent,
+        author: 'human',
+        perspective: 'human',
+        kind: document.getElementById('create-kind').value,
+        content: document.getElementById('create-content').value,
+        salience: parseInt(document.getElementById('create-salience').value)
+      };
+
+      try {
+        const res = await fetch(API_BASE + '/observe', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error("Failed to create");
+        closeModal('create-modal');
+        document.getElementById('create-content').value = '';
+        showToast('Observation created');
+        loadData();
+      } catch(e) {
+        showToast('Error: ' + e.message);
+      }
+    });
+
+    function toggleSoulfile() {
+      const el = document.getElementById('soulfile');
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Load on enter key in agent input
+    document.getElementById('agent-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loadData();
+    });
+  </script>
+
+  <footer class="footer">
+    <a href="https://github.com/OliverandMara/the-tether-mind-by-AIBU" target="_blank">Tether Mind</a> by AIBU
+  </footer>
+</body>
+</html>`;
+}
