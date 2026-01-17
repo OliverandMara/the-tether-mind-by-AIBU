@@ -1,0 +1,13 @@
+name = "tether-mind-YOURNAME"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# REPLACE THESE WITH YOUR IDS FROM THE INSTALLER
+[[d1_databases]]
+binding = "DB"
+database_name = "tether-mind-YOURNAME"
+database_id = "YOUR_DATABASE_ID"
+
+[[kv_namespaces]]
+binding = "SOULFILES"
+id = "YOUR_SOULFILES_KV_ID"
